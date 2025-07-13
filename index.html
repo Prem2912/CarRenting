@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoZone - Car Rental</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <header>
+    <h1>AutoZone</h1>
+    <nav>
+      <a href="#cars">Cars</a>
+      <a href="#book">Book</a>
+      <a href="#" id="historyTab">History</a>
+      <a href="#" id="loginTab">Login</a>
+      <button id="themeToggle" title="Toggle Dark Mode">🌓</button>
+      <button id="profileIcon" title="User Profile" style="display:none; margin-left:10px; background:none; border:none; font-size:22px; cursor:pointer;">👤</button>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h2>Rent your ride with AutoZone</h2>
+  </section>
+
+  <div class="container">
+    <!-- Search & Filter Section -->
+    <section class="search-filter">
+      <input type="text" id="searchInput" class="styled-input" placeholder="Search by car name...">
+      <select id="priceFilter" class="styled-select">
+        <option value="">All Prices</option>
+        <option value="1000">Below ₹1000</option>
+        <option value="1500">Below ₹1500</option>
+        <option value="2000">Below ₹2000</option>
+      </select>
+    </section>
+
+    <!-- Cars -->
+    <section id="cars">
+      <h3 class="section-title">Available Cars</h3>
+      <div class="car-grid" id="car-container"></div>
+    </section>
+
+    <!-- Booking Form -->
+    <section id="book" class="booking-form">
+      <h3 class="section-title">Book Your Car</h3>
+      <form id="bookingForm">
+        <input type="text" id="car" placeholder="Car Name" required>
+        <input type="number" id="days" placeholder="Number of Days" required>
+        <input type="text" id="name" placeholder="Your Name" required>
+        <input type="text" id="pickupLocation" placeholder="Pickup Location" required>
+        <input type="text" id="dropLocation" placeholder="Drop Location" required>
+        <label for="pickupDate">Pickup Date & Time</label>
+        <input type="datetime-local" id="pickupDate" required>
+        <label for="dropDate">Drop Date & Time</label>
+        <input type="datetime-local" id="dropDate" required>
+        <button type="submit">Confirm Booking</button>
+      </form>
+    </section>
+
+    <!-- Booking History Modal -->
+    <div id="historyModal" class="modal" style="display:none;">
+      <div class="modal-content history">
+        <span class="close-modal" id="closeHistoryModal">&times;</span>
+        <h3 class="section-title">Your Booking History</h3>
+        <ul id="bookingHistory"></ul>
+      </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal" style="display:none;">
+      <div class="modal-content auth-form">
+        <span class="close-modal" id="closeLoginModal">&times;</span>
+        <h3 class="section-title">Login / Signup</h3>
+        <div class="auth-inputs" id="authInputs">
+          <input type="email" id="email" class="styled-input" placeholder="Email">
+          <input type="password" id="password" class="styled-input" placeholder="Password">
+          <div class="auth-buttons">
+            <button type="button" onclick="signUp()">Sign Up</button>
+            <button type="button" onclick="login()">Login</button>
+          </div>
+          <p id="authStatus"></p>
+        </div>
+        <!-- User Profile Form (hidden until logged in) -->
+        <form id="profileForm" style="display:none; margin-top:20px;">
+          <h4 style="margin-bottom:10px;">Your Profile</h4>
+          <input type="text" id="profileName" class="styled-input" placeholder="Full Name" required>
+          <input type="text" id="profilePhone" class="styled-input" placeholder="Phone Number" required>
+          <input type="text" id="profileAddress" class="styled-input" placeholder="Address" required>
+          <button type="submit">Save Profile</button>
+          <p id="profileStatus"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal" style="display:none;">
+      <div class="modal-content auth-form">
+        <span class="close-modal" id="closeProfileModal">&times;</span>
+        <h3 class="section-title">Your Profile</h3>
+        <div id="profileInfo">
+          <p><strong>Email:</strong> <span id="profileEmail"></span></p>
+          <p><strong>Name:</strong> <span id="profileNameView"></span></p>
+          <p><strong>Phone:</strong> <span id="profilePhoneView"></span></p>
+          <p><strong>Address:</strong> <span id="profileAddressView"></span></p>
+        </div>
+        <button id="logoutProfileBtn" style="margin-top:20px;">Logout</button>
+      </div>
+    </div>
+
+    <!-- Admin View -->
+    <section id="adminView" class="history" style="display:none">
+      <h3 class="section-title">Admin - All Bookings</h3>
+      <ul id="adminBookingList"></ul>
+    </section>
+  </div>
+
+  <footer>
+    &copy; 2025 AutoZone Car Rentals. All rights reserved.
+  </footer>
+
+  <script>
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+    });
+
+    // Modal logic
+    const loginTab = document.getElementById("loginTab");
+    const loginModal = document.getElementById("loginModal");
+    const closeLoginModal = document.getElementById("closeLoginModal");
+    const profileIcon = document.getElementById("profileIcon");
+    const profileModal = document.getElementById("profileModal");
+    const closeProfileModal = document.getElementById("closeProfileModal");
+    const logoutProfileBtn = document.getElementById("logoutProfileBtn");
+    const historyTab = document.getElementById("historyTab");
+    const historyModal = document.getElementById("historyModal");
+    const closeHistoryModal = document.getElementById("closeHistoryModal");
+
+    loginTab.addEventListener("click", function(e) {
+      e.preventDefault();
+      loginModal.style.display = "block";
+    });
+    closeLoginModal.addEventListener("click", function() {
+      loginModal.style.display = "none";
+    });
+    window.addEventListener("click", function(event) {
+      if (event.target === loginModal) {
+        loginModal.style.display = "none";
+      }
+      if (event.target === profileModal) {
+        profileModal.style.display = "none";
+      }
+      if (event.target === historyModal) {
+        historyModal.style.display = "none";
+      }
+    });
+
+    // Profile icon logic
+    profileIcon.addEventListener("click", function() {
+      profileModal.style.display = "block";
+      // Fill profile info from local/global state
+      if (window.profileData) {
+        document.getElementById("profileEmail").textContent = window.profileData.email || '';
+        document.getElementById("profileNameView").textContent = window.profileData.name || '';
+        document.getElementById("profilePhoneView").textContent = window.profileData.phone || '';
+        document.getElementById("profileAddressView").textContent = window.profileData.address || '';
+      }
+    });
+    closeProfileModal.addEventListener("click", function() {
+      profileModal.style.display = "none";
+    });
+    logoutProfileBtn.addEventListener("click", function() {
+      if (window.logout) window.logout();
+      profileModal.style.display = "none";
+    });
+
+    // History modal logic
+    historyTab.addEventListener("click", function(e) {
+      e.preventDefault();
+      historyModal.style.display = "block";
+      if (window.loadUserBookings) window.loadUserBookings();
+    });
+    closeHistoryModal.addEventListener("click", function() {
+      historyModal.style.display = "none";
+    });
+  </script>
+
+  <script src="script.js"></script>
+</body>
+</html>
